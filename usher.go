@@ -2,12 +2,14 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -36,6 +38,41 @@ func (fm IfcbFileMapper) GetFileDestPath(file string) (string, error) {
 	}
 	destPath := fileTime.Format("2006/D20060102/") + base
 	return destPath, nil
+}
+
+var FileMappers map[string]FileMapper
+
+func init() {
+	FileMappers = make(map[string]FileMapper)
+	FileMappers["ifcb"] = IfcbFileMapper{}
+}
+
+func GetFileMapper(fileMapperType string) (FileMapper, error) {
+	if len(fileMapperType) == 0 {
+		if len(FileMappers) == 1 {
+			for k, _ := range FileMappers {
+				fileMapperType = k
+				break
+			}
+			fmt.Println("Using type", fileMapperType)
+		} else {
+			return nil, errors.New("File mapper type was not provided, " + getFileMapperTypes())
+		}
+	}
+	fileMapper, ok := FileMappers[fileMapperType]
+	if !ok {
+		return nil, errors.New("FileMapper " + fileMapperType + " does not exist, " + getFileMapperTypes())
+	}
+	return fileMapper, nil
+}
+
+func getFileMapperTypes() string {
+	types := make([]string, 0)
+	for k, _ := range FileMappers {
+		types = append(types, k)
+	}
+	sort.Strings(types)
+	return "valid types: " + strings.Join(types, ", ")
 }
 
 func processFile(debug bool, copy bool, fileMapper FileMapper, srcDir string, destDir string, srcFile string) {

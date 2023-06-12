@@ -16,6 +16,7 @@ func (g *Globals) Print() {
 }
 
 type WatchCmd struct {
+	Type     string `help:"File type to process."`
 	SrcPath  string `arg:"" help:"Source path to watch." type:"path"`
 	DestPath string `arg:"" help:"Destination path." type:"path"`
 }
@@ -27,11 +28,16 @@ func (c *WatchCmd) Run(globals *Globals) error {
 		fmt.Println("dest", c.DestPath)
 		globals.Print()
 	}
-	Watch(globals.Debug, globals.Copy, IfcbFileMapper{}, c.SrcPath, c.DestPath)
+	fileMapper, err := GetFileMapper(c.Type)
+	if err != nil {
+		return err
+	}
+	Watch(globals.Debug, globals.Copy, fileMapper, c.SrcPath, c.DestPath)
 	return nil
 }
 
 type ProcessCmd struct {
+	Type     string `help:"File type to process."`
 	SrcPath  string `arg:"" help:"Source path to process." type:"path"`
 	DestPath string `arg:"" help:"Destination path." type:"path"`
 }
@@ -43,7 +49,11 @@ func (c *ProcessCmd) Run(globals *Globals) error {
 		fmt.Println("dest", c.DestPath)
 		globals.Print()
 	}
-	Process(globals.Debug, globals.Copy, IfcbFileMapper{}, c.SrcPath, c.DestPath)
+	fileMapper, err := GetFileMapper(c.Type)
+	if err != nil {
+		return err
+	}
+	Process(globals.Debug, globals.Copy, fileMapper, c.SrcPath, c.DestPath)
 	return nil
 }
 
