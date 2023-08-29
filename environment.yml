@@ -1,0 +1,6 @@
+name: usher
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - go
