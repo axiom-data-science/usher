@@ -3,57 +3,128 @@ package main
 import (
 	"fmt"
 	"github.com/alecthomas/kong"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 )
 
-type Globals struct {
-	Debug bool `help:"Enable debug mode."`
-	Copy  bool `help:"Copy files to destination instead of using hard links."`
+type Config struct {
+	Globals `yaml:",inline"`
+	Watch   WatchConfig
 }
 
-func (g *Globals) Print() {
-	fmt.Println("debug", g.Debug)
-	fmt.Println("copy", g.Copy)
+func (c *Config) Print() {
+	yamlBytes, err := yaml.Marshal(c)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(yamlBytes))
+}
+
+func (c *Config) UnmarshalConfigFile(configPath string) {
+	if len(configPath) == 0 {
+		return
+	}
+
+	configBytes, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		panic(err)
+	}
+
+	err = yaml.Unmarshal(configBytes, &c)
+	if err != nil {
+		panic(err)
+	}
+
+	return
+}
+
+func (c *Config) ApplyCliConfig(globals *Globals, dirArgs *DirArgs) {
+	if globals.Debug {
+		c.Debug = globals.Debug
+	}
+
+	if globals.Copy {
+		c.Copy = globals.Copy
+	}
+
+	if len(globals.Type) > 0 {
+		c.Type = globals.Type
+	}
+
+	if len(dirArgs.SrcDir) > 0 {
+		c.SrcDir = dirArgs.SrcDir
+	}
+
+	if len(dirArgs.DestDir) > 0 {
+		c.DestDir = dirArgs.DestDir
+	}
+}
+
+func GetConfig(globals *Globals, dirArgs *DirArgs) Config {
+	config := Config{}
+	config.UnmarshalConfigFile(globals.ConfigPath)
+	config.ApplyCliConfig(globals, dirArgs)
+	return config
+}
+
+type Globals struct {
+	ConfigPath string `help:"Path to configuration yaml file." name:"config" type:"existingfile" yaml:"-"`
+	Debug      bool   `help:"Enable debug mode." yaml:"debug"`
+	Copy       bool   `help:"Copy files to destination instead of using hard links."`
+	Type       string `help:"File type to watch/process."`
+	SrcDir     string `yaml:"src" kong:"-"`
+	DestDir    string `yaml:"dest" kong:"-"`
+}
+
+type DirArgs struct {
+	SrcDir  string `arg:"" help:"Source directory to watch/process." type:"path"`
+	DestDir string `arg:"" help:"Destination directory." type:"path"`
+}
+
+type WatchConfig struct {
+	EventBufferSize int `help:"Size of file event buffer (if buffer is full events are dropped). Default 1000."`
 }
 
 type WatchCmd struct {
-	Type     string `help:"File type to process."`
-	SrcPath  string `arg:"" help:"Source path to watch." type:"path"`
-	DestPath string `arg:"" help:"Destination path." type:"path"`
+	WatchConfig
+	DirArgs
 }
 
 func (c *WatchCmd) Run(globals *Globals) error {
-	if globals.Debug {
-		fmt.Println("watch")
-		fmt.Println("source", c.SrcPath)
-		fmt.Println("dest", c.DestPath)
-		globals.Print()
+	config := GetConfig(globals, &c.DirArgs)
+
+	if c.EventBufferSize > 0 {
+		config.Watch.EventBufferSize = c.EventBufferSize
+	} else if config.Watch.EventBufferSize == 0 {
+		config.Watch.EventBufferSize = 1000
 	}
-	fileMapper, err := GetFileMapper(c.Type)
+
+	if config.Debug {
+		config.Print()
+	}
+
+	fileMapper, err := GetFileMapper(config.Type)
 	if err != nil {
 		return err
 	}
-	Watch(globals.Debug, globals.Copy, fileMapper, c.SrcPath, c.DestPath)
+
+	Watch(config, fileMapper)
 	return nil
 }
 
 type ProcessCmd struct {
-	Type     string `help:"File type to process."`
-	SrcPath  string `arg:"" help:"Source path to process." type:"path"`
-	DestPath string `arg:"" help:"Destination path." type:"path"`
+	DirArgs
 }
 
 func (c *ProcessCmd) Run(globals *Globals) error {
-	if globals.Debug {
-		fmt.Println("process")
-		fmt.Println("source", c.SrcPath)
-		fmt.Println("dest", c.DestPath)
-		globals.Print()
-	}
-	fileMapper, err := GetFileMapper(c.Type)
+	config := GetConfig(globals, &c.DirArgs)
+
+	fileMapper, err := GetFileMapper(config.Type)
 	if err != nil {
 		return err
 	}
-	Process(globals.Debug, globals.Copy, fileMapper, c.SrcPath, c.DestPath)
+
+	Process(config, fileMapper)
 	return nil
 }
 
