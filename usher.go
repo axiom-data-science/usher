@@ -50,7 +50,7 @@ func init() {
 func GetFileMapper(fileMapperType string) (FileMapper, error) {
 	if len(fileMapperType) == 0 {
 		if len(FileMappers) == 1 {
-			for k, _ := range FileMappers {
+			for k := range FileMappers {
 				fileMapperType = k
 				break
 			}
@@ -68,20 +68,20 @@ func GetFileMapper(fileMapperType string) (FileMapper, error) {
 
 func getFileMapperTypes() string {
 	types := make([]string, 0)
-	for k, _ := range FileMappers {
+	for k := range FileMappers {
 		types = append(types, k)
 	}
 	sort.Strings(types)
 	return "valid types: " + strings.Join(types, ", ")
 }
 
-func processFile(debug bool, copy bool, fileMapper FileMapper, srcDir string, destDir string, srcFile string) {
-	srcDirAbs, _ := filepath.Abs(srcDir)
+func processFile(config Config, fileMapper FileMapper, srcFile string) {
+	srcDirAbs, _ := filepath.Abs(config.SrcDir)
 	relativeSrcFile := strings.TrimPrefix(srcFile, srcDirAbs+"/")
 	base := path.Base(srcFile)
 	//skip files starting with .  //rsync prepends . to files currently being transferred
 	if base[0] == '.' {
-		if debug {
+		if config.Debug {
 			log.Println("file", relativeSrcFile, "starts with ., ignoring")
 		}
 		return
@@ -90,18 +90,18 @@ func processFile(debug bool, copy bool, fileMapper FileMapper, srcDir string, de
 	relativeDestFile, err := fileMapper.GetFileDestPath(relativeSrcFile)
 	if err != nil {
 		//TODO copy to unhandled directory?
-		if debug {
+		if config.Debug {
 			log.Println(err)
 		}
 		return
 	}
-	destFile := destDir + "/" + relativeDestFile
+	destFile := config.DestDir + "/" + relativeDestFile
 	destParentDir := path.Dir(destFile)
 	os.MkdirAll(destParentDir, os.ModePerm)
 
 	//check for existing file and delete if found
 	if _, err := os.Stat(destFile); err == nil {
-		if debug {
+		if config.Debug {
 			log.Println("file", destFile, "exists, deleting")
 		}
 		if err := os.Remove(destFile); err != nil {
@@ -110,7 +110,7 @@ func processFile(debug bool, copy bool, fileMapper FileMapper, srcDir string, de
 		}
 	}
 
-	if copy {
+	if config.Copy {
 		log.Println(srcFile, "--copy-->", destFile)
 		err = copyFile(srcFile, destFile)
 	} else {
@@ -144,37 +144,43 @@ func copyFile(srcPath string, destPath string) error {
 	return nil
 }
 
-func Watch(debug bool, copy bool, fileMapper FileMapper, srcDir string, destDir string) {
-	c := make(chan notify.EventInfo, 1)
+func Watch(config Config, fileMapper FileMapper) {
+	c := make(chan notify.EventInfo, config.Watch.EventBufferSize)
 
-	os.MkdirAll(srcDir, os.ModePerm)
+	os.MkdirAll(config.SrcDir, os.ModePerm)
 
-	if err := notify.Watch(srcDir+"/...", c, notify.All); err != nil {
+	if err := notify.Watch(config.SrcDir+"/...", c, notify.All); err != nil {
 		log.Fatal(err)
 	}
 	defer notify.Stop(c)
 
 	for eventInfo := range c {
-		if eventInfo.Event() == notify.Write || eventInfo.Event() == notify.Rename {
-			processFile(debug, copy, fileMapper, srcDir, destDir, eventInfo.Path())
+		if config.Debug {
+			log.Println("Detected event", eventInfo.Event(), "for file", eventInfo.Path())
+		}
+		if eventInfo.Event() == notify.Create || eventInfo.Event() == notify.Write {
+			if config.Debug {
+				log.Println("Processing event", eventInfo.Event(), "for file", eventInfo.Path())
+			}
+			processFile(config, fileMapper, eventInfo.Path())
 		}
 	}
 }
 
-func Process(debug bool, copy bool, fileMapper FileMapper, srcDir string, destDir string) {
-	if _, err := os.Stat(srcDir); err != nil {
-		log.Fatalf("Source directory " + srcDir + " does not exist")
+func Process(config Config, fileMapper FileMapper) {
+	if _, err := os.Stat(config.SrcDir); err != nil {
+		log.Fatalf("Source directory " + config.SrcDir + " does not exist")
 	}
 
-	err := filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(config.SrcDir, func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
 			//skip directories
 			return nil
 		}
-		processFile(debug, copy, fileMapper, srcDir, destDir, path)
+		processFile(config, fileMapper, path)
 		return nil
 	})
 	if err != nil {
-		log.Fatalf("Could not walk source directory " + srcDir + ", " + err.Error())
+		log.Fatalf("Could not walk source directory " + config.SrcDir + ", " + err.Error())
 	}
 }
