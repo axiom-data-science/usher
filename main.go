@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Globals `yaml:",inline"`
-	Watch   WatchConfig
+	Globals          `yaml:",inline"`
+	RootPathMappings map[string]string
+	Watch            WatchConfig
 }
 
 func (c *Config) Print() {

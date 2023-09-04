@@ -95,6 +95,38 @@ func processFile(config Config, fileMapper FileMapper, srcFile string) {
 		}
 		return
 	}
+
+	if len(config.RootPathMappings) > 0 {
+		//if srcFile begins with a map key in config.RootPathMappings,
+		//prefix the destination with the map value
+		//to place all unmatched files into a directory, provide a root path mapping
+		//with a zero length string for a key (e.g. "":unmatched)
+		//otherwise files with unmatched root paths are ignored
+
+		//reverse sort config.RootPathMapping keys to find more specific matches first
+		rootPathMappingKeys := make([]string, 0, len(config.RootPathMappings))
+		for rootPath := range config.RootPathMappings {
+			rootPathMappingKeys = append(rootPathMappingKeys, rootPath)
+		}
+		sort.Sort(sort.Reverse(sort.StringSlice(rootPathMappingKeys)))
+
+		var mappedRootPath *string
+		for _, rootPath := range rootPathMappingKeys {
+			if strings.HasPrefix(relativeSrcFile, rootPath) {
+				rp := config.RootPathMappings[rootPath]
+				mappedRootPath = &rp
+				break
+			}
+		}
+
+		if mappedRootPath != nil {
+			relativeDestFile = *mappedRootPath + "/" + relativeDestFile
+		} else {
+			log.Println("No root path mapping found for", relativeSrcFile, "(skipping)")
+			return
+		}
+	}
+
 	destFile := config.DestDir + "/" + relativeDestFile
 	destParentDir := path.Dir(destFile)
 	os.MkdirAll(destParentDir, os.ModePerm)
