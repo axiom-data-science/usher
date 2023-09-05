@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Globals          `yaml:",inline"`
 	RootPathMappings map[string]string
+	FileMapper       FileMapper `yaml:"-"`
 	Watch            WatchConfig
 }
 
@@ -48,8 +49,8 @@ func (c *Config) ApplyCliConfig(globals *Globals, dirArgs *DirArgs) {
 		c.Copy = globals.Copy
 	}
 
-	if len(globals.Type) > 0 {
-		c.Type = globals.Type
+	if len(globals.FileMapperRef) > 0 {
+		c.FileMapperRef = globals.FileMapperRef
 	}
 
 	if len(dirArgs.SrcDir) > 0 {
@@ -65,16 +66,26 @@ func GetConfig(globals *Globals, dirArgs *DirArgs) Config {
 	config := Config{}
 	config.UnmarshalConfigFile(globals.ConfigPath)
 	config.ApplyCliConfig(globals, dirArgs)
+	fileMapper, err := GetFileMapper(config.FileMapperRef)
+	if err != nil {
+		panic(err)
+	}
+	config.FileMapper = fileMapper
+
+	if config.Debug {
+		config.Print()
+	}
+
 	return config
 }
 
 type Globals struct {
-	ConfigPath string `help:"Path to configuration yaml file." name:"config" type:"existingfile" yaml:"-"`
-	Debug      bool   `help:"Enable debug mode." yaml:"debug"`
-	Copy       bool   `help:"Copy files to destination instead of using hard links."`
-	Type       string `help:"File type to watch/process."`
-	SrcDir     string `yaml:"src" kong:"-"`
-	DestDir    string `yaml:"dest" kong:"-"`
+	ConfigPath    string `help:"Path to configuration yaml file." name:"config" type:"existingfile" yaml:"-"`
+	Debug         bool   `help:"Enable debug mode." yaml:"debug"`
+	Copy          bool   `help:"Copy files to destination instead of using hard links."`
+	FileMapperRef string `help:"FileMapper type or external executable to map files from src to dest." name:"mapper"`
+	SrcDir        string `yaml:"src" kong:"-"`
+	DestDir       string `yaml:"dest" kong:"-"`
 }
 
 type DirArgs struct {
@@ -100,16 +111,7 @@ func (c *WatchCmd) Run(globals *Globals) error {
 		config.Watch.EventBufferSize = 1000
 	}
 
-	if config.Debug {
-		config.Print()
-	}
-
-	fileMapper, err := GetFileMapper(config.Type)
-	if err != nil {
-		return err
-	}
-
-	Watch(config, fileMapper)
+	Watch(config)
 	return nil
 }
 
@@ -119,13 +121,7 @@ type ProcessCmd struct {
 
 func (c *ProcessCmd) Run(globals *Globals) error {
 	config := GetConfig(globals, &c.DirArgs)
-
-	fileMapper, err := GetFileMapper(config.Type)
-	if err != nil {
-		return err
-	}
-
-	Process(config, fileMapper)
+	Process(config)
 	return nil
 }
 
