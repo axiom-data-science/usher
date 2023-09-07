@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
-  "os/exec"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"sort"
@@ -18,33 +18,33 @@ import (
 )
 
 type FileMapper interface {
-  GetFileDestPath(relSrcFile string, absSrcFile string,
-    mappedRootSrcPath string, mappedRootDestPath string,
-    relToMappedRootSrcFile string) (string, error)
+	GetFileDestPath(relSrcFile string, absSrcFile string,
+		mappedRootSrcPath string, mappedRootDestPath string,
+		relToMappedRootSrcFile string) (string, error)
 }
 
-type ExternalFileMapper struct{
-  Executable string
+type ExternalFileMapper struct {
+	Executable string
 }
 
 func (fm ExternalFileMapper) GetFileDestPath(relSrcFile string, absSrcFile string,
-    mappedRootSrcPath string, mappedRootDestPath string,
-    relToMappedRootSrcFile string) (string, error) {
-  out, err := exec.Command(fm.Executable, relSrcFile, absSrcFile,
-    mappedRootSrcPath, mappedRootDestPath, relToMappedRootSrcFile).Output()
-  if err != nil {
-    log.Println(err)
-    return "", errors.New("error when processing " + relSrcFile +
-      "using external mapper " + fm.Executable + ": " + err.Error())
-  }
-  return string(out), nil
+	mappedRootSrcPath string, mappedRootDestPath string,
+	relToMappedRootSrcFile string) (string, error) {
+	out, err := exec.Command(fm.Executable, relSrcFile, absSrcFile,
+		mappedRootSrcPath, mappedRootDestPath, relToMappedRootSrcFile).Output()
+	if err != nil {
+		log.Println(err)
+		return "", errors.New("error when processing " + relSrcFile +
+			"using external mapper " + fm.Executable + ": " + err.Error())
+	}
+	return string(out), nil
 }
 
 type IfcbFileMapper struct{}
 
 func (fm IfcbFileMapper) GetFileDestPath(relSrcFile string, absSrcFile string,
-    mappedRootSrcPath string, mappedRootDestPath string,
-    relToMappedRootSrcFile string) (string, error) {
+	mappedRootSrcPath string, mappedRootDestPath string,
+	relToMappedRootSrcFile string) (string, error) {
 	//D20230525T192231_IFCB162.adc
 	base := path.Base(relSrcFile)
 	if base[0] != 'D' {
@@ -83,17 +83,17 @@ func GetFileMapper(fileMapperRef string) (FileMapper, error) {
 	}
 
 	fileMapper, ok := FileMappers[fileMapperRef]
-  if !ok {
-    //if we didn't find a known filen mapper, look for a matching exeternal executable
-    _, err := exec.LookPath(fileMapperRef)
-    if err == nil {
-      //create a fileMapper which will call the external executable as the mapper
-      fileMapper = ExternalFileMapper{
-        Executable: fileMapperRef,
-      }
-      ok = true
-    }
-  }
+	if !ok {
+		//if we didn't find a known filen mapper, look for a matching exeternal executable
+		_, err := exec.LookPath(fileMapperRef)
+		if err == nil {
+			//create a fileMapper which will call the external executable as the mapper
+			fileMapper = ExternalFileMapper{
+				Executable: fileMapperRef,
+			}
+			ok = true
+		}
+	}
 	if !ok {
 		return nil, errors.New("FileMapper " + fileMapperRef + " does not exist, " + getFileMapperRefs())
 	}
@@ -136,13 +136,13 @@ func processFile(config Config, absSrcFile string) {
 		}
 		sort.Sort(sort.Reverse(sort.StringSlice(rootPathMappingKeys)))
 
-    var mappedRootPathFound bool = false
+		var mappedRootPathFound bool = false
 		for _, rootPath := range rootPathMappingKeys {
 			if strings.HasPrefix(relSrcFile, rootPath) {
-        mappedRootPathFound = true
-        mappedRootSrcPath = rootPath
+				mappedRootPathFound = true
+				mappedRootSrcPath = rootPath
 				mappedRootDestPath = config.RootPathMappings[rootPath]
-        relToMappedRootSrcFile = strings.TrimPrefix(relSrcFile, rootPath + "/" )
+				relToMappedRootSrcFile = strings.TrimPrefix(relSrcFile, rootPath+"/")
 				break
 			}
 		}
@@ -154,7 +154,7 @@ func processFile(config Config, absSrcFile string) {
 	}
 
 	relDestFile, err := config.FileMapper.GetFileDestPath(
-      relSrcFile, absSrcFile, mappedRootSrcPath, mappedRootDestPath, relToMappedRootSrcFile)
+		relSrcFile, absSrcFile, mappedRootSrcPath, mappedRootDestPath, relToMappedRootSrcFile)
 
 	if err != nil {
 		//TODO copy to unhandled directory?
@@ -164,26 +164,38 @@ func processFile(config Config, absSrcFile string) {
 		return
 	}
 
-  //if relDestFile is multiline, just use the first (could be an artifact of external executables)
-  relDestFile = strings.Split(relDestFile, "\n")[0]
+	//if relDestFile is multiline, just use the first (could be an artifact of external executables)
+	relDestFile = strings.Split(relDestFile, "\n")[0]
 
-  //prepend the mapped root if mapped roots are configured
-  if len(mappedRootDestPath) > 0 {
-    relDestFile = mappedRootDestPath + "/" + relDestFile
-  }
+	//prepend the mapped root if mapped roots are configured
+	if len(mappedRootDestPath) > 0 {
+		relDestFile = mappedRootDestPath + "/" + relDestFile
+	}
 
 	destFile := config.DestDir + "/" + relDestFile
 	destParentDir := path.Dir(destFile)
 	os.MkdirAll(destParentDir, os.ModePerm)
 
-	//check for existing file and delete if found
-	if _, err := os.Stat(destFile); err == nil {
-		if config.Debug {
-			log.Println("file", destFile, "exists, deleting")
-		}
-		if err := os.Remove(destFile); err != nil {
-			log.Println("failed to delete file", destFile, err)
+	//check for existing file and delete if it's not the same
+	srcStat, err := os.Stat(absSrcFile)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	if destStat, err := os.Stat(destFile); err == nil {
+		if os.SameFile(srcStat, destStat) {
+			if config.Debug {
+				log.Println("file", destFile, "exists and is the same as src file, skipping")
+			}
 			return
+		} else {
+			if config.Debug {
+				log.Println("file", destFile, "exists and is not the same as src file, deleting")
+			}
+			if err := os.Remove(destFile); err != nil {
+				log.Println("failed to delete file", destFile, err)
+				return
+			}
 		}
 	}
 
