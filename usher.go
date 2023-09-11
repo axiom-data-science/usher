@@ -77,8 +77,21 @@ func getFileMapperRefs() string {
 }
 
 func processFile(config Config, absSrcFile string) {
+	srcStat, err := os.Stat(absSrcFile)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	srcDirAbs, _ := filepath.Abs(config.SrcDir)
 	relSrcFile := strings.TrimPrefix(absSrcFile, srcDirAbs+"/")
+
+	if srcStat.IsDir() {
+		if config.Debug {
+			log.Println("Ignoring directory", relSrcFile)
+			return
+		}
+	}
+
 	baseSrcFile := path.Base(absSrcFile)
 	//skip files starting with .  //rsync prepends . to files currently being transferred
 	if baseSrcFile[0] == '.' {
@@ -134,21 +147,29 @@ func processFile(config Config, absSrcFile string) {
 	//if relDestFile is multiline, just use the first (could be an artifact of external executables)
 	relDestFile = strings.Split(relDestFile, "\n")[0]
 
-	//prepend the mapped root if mapped roots are configured
+	//append the mapped root to dest dir if mapped roots are configured
+	destDir := config.DestDir
 	if len(mappedRootDestPath) > 0 {
-		relDestFile = mappedRootDestPath + "/" + relDestFile
+		destDir += "/" + mappedRootDestPath
 	}
 
-	destFile := config.DestDir + "/" + relDestFile
+	destFile, _ := filepath.Abs(destDir + "/" + relDestFile)
+
+	//make sure destFile is inside config root dest dir and mapped root (if applicable),
+	//aka relative paths weren't used to climb out of it
+	if !strings.HasPrefix(destFile, config.DestDir) {
+		log.Println(destFile, "is not contained by", config.DestDir, "(skipping)")
+		return
+	}
+	if len(mappedRootDestPath) > 0 && !strings.HasPrefix(destFile, destDir) {
+		log.Println(destFile, "is not contained by mapped root", destDir, "(skipping)")
+		return
+	}
+
 	destParentDir := path.Dir(destFile)
 	os.MkdirAll(destParentDir, os.ModePerm)
 
 	//check for existing file and delete if it's not the same
-	srcStat, err := os.Stat(absSrcFile)
-	if err != nil {
-		log.Println(err)
-		return
-	}
 	if destStat, err := os.Stat(destFile); err == nil {
 		if os.SameFile(srcStat, destStat) {
 			if config.Debug {
