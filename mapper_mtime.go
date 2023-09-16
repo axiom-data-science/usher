@@ -19,8 +19,7 @@ func NewMtimeFileMapper(datePathFormat string) *MtimeFileMapper {
 }
 
 func (fm *MtimeFileMapper) GetFileDestPath(relSrcFile string, absSrcFile string,
-	baseSrcFile string, mappedRootSrcPath string, mappedRootDestPath string,
-	relToMappedRootSrcFile string) (string, error) {
+	baseSrcFile string, mappedRootSrcPath string, mappedRootDestPath string) (string, error) {
 	//stat source file for last modified time
 	srcStat, err := os.Stat(absSrcFile)
 	if err != nil {

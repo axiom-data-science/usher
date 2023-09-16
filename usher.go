@@ -18,8 +18,7 @@ import (
 
 type FileMapper interface {
 	GetFileDestPath(relSrcFile string, absSrcFile string, baseSrcFile string,
-		mappedRootSrcPath string, mappedRootDestPath string,
-		relToMappedRootSrcFile string) (string, error)
+		mappedRootSrcPath string, mappedRootDestPath string) (string, error)
 }
 
 var fileMappers map[string]FileMapper = make(map[string]FileMapper)
@@ -101,8 +100,12 @@ func processFile(config Config, absSrcFile string) {
 		return
 	}
 
-	var mappedRootSrcPath, mappedRootDestPath, relToMappedRootSrcFile string
-	if len(config.RootPathMappings) > 0 {
+	var relToRelevantRootSrcFile, mappedRootSrcPath, mappedRootDestPath string
+	if len(config.RootPathMappings) == 0 {
+		//if root path mappings are not used, we set relToRelevantRootSrcFile
+		//to relSrcFile
+		relToRelevantRootSrcFile = relSrcFile
+	} else {
 		//if srcFile begins with a map key in config.RootPathMappings,
 		//prefix the destination with the map value
 		//to place all unmatched files into a directory, provide a root path mapping
@@ -120,9 +123,9 @@ func processFile(config Config, absSrcFile string) {
 		for _, rootPath := range rootPathMappingKeys {
 			if strings.HasPrefix(relSrcFile, rootPath) {
 				mappedRootPathFound = true
+				relToRelevantRootSrcFile = strings.TrimPrefix(relSrcFile, rootPath+"/")
 				mappedRootSrcPath = rootPath
 				mappedRootDestPath = config.RootPathMappings[rootPath]
-				relToMappedRootSrcFile = strings.TrimPrefix(relSrcFile, rootPath+"/")
 				break
 			}
 		}
@@ -134,7 +137,7 @@ func processFile(config Config, absSrcFile string) {
 	}
 
 	relDestFile, err := config.FileMapper.GetFileDestPath(
-		relSrcFile, absSrcFile, baseSrcFile, mappedRootSrcPath, mappedRootDestPath, relToMappedRootSrcFile)
+		relToRelevantRootSrcFile, absSrcFile, baseSrcFile, mappedRootSrcPath, mappedRootDestPath)
 
 	if err != nil {
 		//TODO copy to unhandled directory?
@@ -167,7 +170,9 @@ func processFile(config Config, absSrcFile string) {
 	}
 
 	destParentDir := path.Dir(destFile)
-	os.MkdirAll(destParentDir, os.ModePerm)
+	if !config.DryRun {
+		os.MkdirAll(destParentDir, os.ModePerm)
+	}
 
 	//check for existing file and delete if it's not the same
 	if destStat, err := os.Stat(destFile); err == nil {
@@ -180,19 +185,25 @@ func processFile(config Config, absSrcFile string) {
 			if config.Debug {
 				log.Println("file", destFile, "exists and is not the same as src file, deleting")
 			}
-			if err := os.Remove(destFile); err != nil {
-				log.Println("failed to delete file", destFile, err)
-				return
+			if !config.DryRun {
+				if err := os.Remove(destFile); err != nil {
+					log.Println("failed to delete file", destFile, err)
+					return
+				}
 			}
 		}
 	}
 
 	if config.Copy {
 		log.Println(absSrcFile, "--copy-->", destFile)
-		err = copyFile(absSrcFile, destFile)
+		if !config.DryRun {
+			err = copyFile(absSrcFile, destFile)
+		}
 	} else {
 		log.Println(absSrcFile, "--link-->", destFile)
-		err = os.Link(absSrcFile, destFile)
+		if !config.DryRun {
+			err = os.Link(absSrcFile, destFile)
+		}
 	}
 
 	if err != nil {
@@ -224,7 +235,9 @@ func copyFile(srcPath string, destPath string) error {
 func Watch(config Config) {
 	c := make(chan notify.EventInfo, config.Watch.EventBufferSize)
 
-	os.MkdirAll(config.SrcDir, os.ModePerm)
+	if !config.DryRun {
+		os.MkdirAll(config.SrcDir, os.ModePerm)
+	}
 
 	if err := notify.Watch(config.SrcDir+"/...", c, notify.All); err != nil {
 		log.Fatal(err)

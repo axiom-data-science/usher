@@ -15,10 +15,9 @@ func NewExternalFileMapper(executable string) *ExternalFileMapper {
 }
 
 func (fm *ExternalFileMapper) GetFileDestPath(relSrcFile string, absSrcFile string,
-	baseSrcFile string, mappedRootSrcPath string, mappedRootDestPath string,
-	relToMappedRootSrcFile string) (string, error) {
+	baseSrcFile string, mappedRootSrcPath string, mappedRootDestPath string) (string, error) {
 	out, err := exec.Command(fm.Executable, relSrcFile, absSrcFile, baseSrcFile,
-		mappedRootSrcPath, mappedRootDestPath, relToMappedRootSrcFile).Output()
+		mappedRootSrcPath, mappedRootDestPath).Output()
 	if err != nil {
 		log.Println(err)
 		return "", errors.New("error when processing " + relSrcFile +

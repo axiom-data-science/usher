@@ -4,24 +4,6 @@ import (
 	"github.com/alecthomas/kong"
 )
 
-type Globals struct {
-	ConfigPath    string `help:"Path to configuration yaml file." name:"config" type:"existingfile" yaml:"-"`
-	Debug         bool   `help:"Enable debug mode." yaml:"debug"`
-	Copy          bool   `help:"Copy files to destination instead of using hard links."`
-	FileMapperRef string `help:"FileMapper type or external executable to map files from src to dest." name:"mapper" yaml:"mapper"`
-	SrcDir        string `yaml:"src" kong:"-"`
-	DestDir       string `yaml:"dest" kong:"-"`
-}
-
-type DirArgs struct {
-	SrcDir  string `arg:"" help:"Source directory to watch/process." type:"path"`
-	DestDir string `arg:"" help:"Destination directory." type:"path"`
-}
-
-type WatchConfig struct {
-	EventBufferSize int `help:"Size of file event buffer (if buffer is full events are dropped). Default 1000."`
-}
-
 type WatchCmd struct {
 	WatchConfig
 	DirArgs
