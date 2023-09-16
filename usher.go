@@ -78,7 +78,11 @@ func getFileMapperRefs() string {
 func processFile(config Config, absSrcFile string) {
 	srcStat, err := os.Stat(absSrcFile)
 	if err != nil {
-		log.Println(err)
+		//if source file doesn't exist and not in debug mode, don't
+		//bother logging (file was deleted before we processed it)
+		if config.Debug || !errors.Is(err, os.ErrNotExist) {
+			log.Println(err)
+		}
 		return
 	}
 	srcDirAbs, _ := filepath.Abs(config.SrcDir)
