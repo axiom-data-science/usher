@@ -4,3 +4,4 @@ channels:
   - defaults
 dependencies:
   - go
+  - gxx_linux-64

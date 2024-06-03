@@ -2,10 +2,10 @@ package usher
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"log"
 	"os"
+
+	"gopkg.in/yaml.v2"
 )
 
 type Globals struct {
@@ -47,7 +47,7 @@ func (c *Config) UnmarshalConfigFile(configPath string) {
 		return
 	}
 
-	configBytes, err := ioutil.ReadFile(configPath)
+	configBytes, err := os.ReadFile(configPath)
 	if err != nil {
 		panic(err)
 	}
