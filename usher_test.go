@@ -99,6 +99,23 @@ echo "external/executable/mapper/$1"
 			filename: "dry_run.txt",
 		},
 		{
+			title: "copy dry run",
+			config: Config{
+				Globals: Globals{
+					SrcDir:  srcDir,
+					DestDir: destDir,
+					Debug:   false,
+					DryRun:  true,
+					Copy:    true,
+				},
+				FileMapper: PassThroughFileMapper,
+			},
+			destPrefix: func(srcFile string) string {
+				return "copy_dry_run"
+			},
+			filename: "copy_dry_run.txt",
+		},
+		{
 			title: "date in file name",
 			config: Config{
 				Globals: Globals{

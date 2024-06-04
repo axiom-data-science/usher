@@ -213,13 +213,25 @@ func processFile(config Config, absSrcFile string) {
 		}
 	}
 
+	var dryRunIndicator = ""
+	if config.DryRun {
+		dryRunIndicator = "-dry-run"
+	}
+
+	var operationType string
 	if config.Copy {
-		log.Println(absSrcFile, "--copy-->", destFile)
+		operationType = "copy"
+	} else {
+		operationType = "link"
+	}
+	operationIndicator := strings.Join([]string{"--", operationType, dryRunIndicator, "-->"}, "")
+	log.Println(absSrcFile, operationIndicator, destFile)
+
+	if config.Copy {
 		if !config.DryRun {
 			err = copyFile(absSrcFile, destFile)
 		}
 	} else {
-		log.Println(absSrcFile, "--link-->", destFile)
 		if !config.DryRun {
 			err = os.Link(absSrcFile, destFile)
 		}
