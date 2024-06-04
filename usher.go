@@ -21,6 +21,21 @@ type FileMapper interface {
 		mappedRootSrcPath string, mappedRootDestPath string) (string, error)
 }
 
+type DelegatingFileMapper struct {
+	GetFileDestPathFunc func(relSrcFile string, absSrcFile string, baseSrcFile string,
+		mappedRootSrcPath string, mappedRootDestPath string) (string, error)
+}
+
+func (fm *DelegatingFileMapper) GetFileDestPath(relSrcFile string, absSrcFile string,
+	baseSrcFile string, mappedRootSrcPath string, mappedRootDestPath string) (string, error) {
+	return fm.GetFileDestPathFunc(relSrcFile, absSrcFile, baseSrcFile, mappedRootSrcPath, mappedRootDestPath)
+}
+
+func NewFileMapper(getFileDestPathFunc func(relSrcFile string, absSrcFile string,
+	baseSrcFile string, mappedRootSrcPath string, mappedRootDestPath string) (string, error)) *DelegatingFileMapper {
+	return &DelegatingFileMapper{getFileDestPathFunc}
+}
+
 var fileMappers map[string]FileMapper = make(map[string]FileMapper)
 
 func SetFileMappers(newFileMappers map[string]FileMapper) {
