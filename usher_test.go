@@ -1,6 +1,7 @@
 package usher
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,12 +34,13 @@ echo "external/executable/mapper/$1"
 
 	// Set up table test conditions/expectations
 	tests := []struct {
+		title      string
 		config     Config
 		destPrefix func(srcFile string) string
 		filename   string
 	}{
-		//simple file mtime
 		{
+			title: "simple file mtime",
 			config: Config{
 				Globals: Globals{
 					SrcDir:  srcDir,
@@ -58,8 +60,8 @@ echo "external/executable/mapper/$1"
 			},
 			filename: "mtime.txt",
 		},
-		//simple file mtime, copy true
 		{
+			title: "simple file mtime, copy true",
 			config: Config{
 				Globals: Globals{
 					SrcDir:  srcDir,
@@ -79,8 +81,8 @@ echo "external/executable/mapper/$1"
 			},
 			filename: "mtime_copy_true.txt",
 		},
-		//dry run
 		{
+			title: "dry run",
 			config: Config{
 				Globals: Globals{
 					SrcDir:  srcDir,
@@ -96,8 +98,8 @@ echo "external/executable/mapper/$1"
 			},
 			filename: "dry_run.txt",
 		},
-		//date in file name
 		{
+			title: "date in file name",
 			config: Config{
 				Globals: Globals{
 					SrcDir:  srcDir,
@@ -124,8 +126,8 @@ echo "external/executable/mapper/$1"
 			},
 			filename: "prefix-2019-03-05T124500.suffix.txt",
 		},
-		//external executable
 		{
+			title: "external executable",
 			config: Config{
 				Globals: Globals{
 					SrcDir:  srcDir,
@@ -144,6 +146,9 @@ echo "external/executable/mapper/$1"
 	}
 
 	for _, tc := range tests {
+		log.Println("Running test:", tc.title)
+
+		// Create source file
 		srcFile := filepath.Join(srcDir, tc.filename)
 		if err := os.WriteFile(srcFile, []byte("test content"), 0644); err != nil {
 			t.Fatal(err)
@@ -182,6 +187,7 @@ echo "external/executable/mapper/$1"
 			return
 		}
 
+		// Make sure inodes are the same/hard links are used (or inodes are different if copying)
 		if tc.config.Copy == true {
 			if srcStat.Ino == destStat.Ino {
 				t.Fatal("src and dest files with config copy: true should not have the same inode")
