@@ -2,7 +2,7 @@
 
 (re-)organize files in a source monitored directory to a target destination directory.
 
-Source files are mapped to destination files using mappers. Mappers can be written directory in go
+Source files are mapped to destination files using mappers. Mappers can be written directly in go
 or in any scriping language and called as an external executable. See External Mappers below for more details.
 
 ## Features
