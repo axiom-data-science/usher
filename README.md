@@ -8,7 +8,7 @@ or in any scriping language and called as an external executable. See External M
 ## Features
 
 * Recursively process entire source directory or watch for new files
-* Use source file attributes last modified time, date in filename, or file content to determine target directory hierarchy and/or filename
+* Use source file attributes such as last modified time, date in filename, or file content to determine target directory hierarchy and/or filename
 * Use hard links to avoid duplicating file storage between source and target directory (source files can be deleted without affecting target directory!)
 * Monitor multiple source directories with the same process using a config file
 * Single binary executable distribution
