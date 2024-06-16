@@ -65,6 +65,10 @@ func (c *Config) ApplyCliConfig(globals *Globals, dirArgs *DirArgs) {
 		c.Debug = globals.Debug
 	}
 
+	if globals.DryRun {
+		c.DryRun = globals.DryRun
+	}
+
 	if globals.Copy {
 		c.Copy = globals.Copy
 	}
@@ -85,9 +89,9 @@ func (c *Config) ApplyCliConfig(globals *Globals, dirArgs *DirArgs) {
 func GetConfig(globals *Globals, dirArgs *DirArgs) Config {
 	config := Config{}
 	if len(globals.ConfigPath) == 0 {
-		//use default config.yml if it exists
-		if _, err := os.Stat("./config.yml"); err == nil {
-			globals.ConfigPath = "./config.yml"
+		//use default usher-config.yml if it exists
+		if _, err := os.Stat("./usher-config.yml"); err == nil {
+			globals.ConfigPath = "./usher-config.yml"
 		}
 	}
 	config.UnmarshalConfigFile(globals.ConfigPath)
