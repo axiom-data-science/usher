@@ -1,7 +1,7 @@
 package main
 
 import (
-	"axds.co/usher"
+	"github.com/axiom-data-science/usher"
 )
 
 func main() {
