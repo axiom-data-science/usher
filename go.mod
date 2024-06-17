@@ -1,4 +1,4 @@
-module axds.co/usher
+module github.com/axiom-data-science/usher
 
 go 1.20
 
