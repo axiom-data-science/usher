@@ -13,6 +13,12 @@ or in any scriping language and called as an external executable. See External M
 * Monitor multiple source subdirectories with different target subdirectories using the same process with a config file
 * Single binary executable distribution
 
+## Building example
+
+```
+go build -o usher-example example/main.go
+```
+
 ## Example usage
 
 ```
